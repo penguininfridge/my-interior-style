@@ -1,6 +1,8 @@
 // @ts-nocheck
 /* 診断の動き（入場演出・質問・集計・結果表示）。元の HTML 版のロジックをそのまま移植しています。 */
 import { BASE, LINKS, img, BRANDS, brandUrl, CASES, caseUrl, TYPES, ORDER, QUESTIONS } from "@/data/diagnosis";
+import { geoOrthographic, geoPath, geoGraticule10 } from "d3-geo";
+import { GEO_COAST, GEO_BORDERS, GEO_BRAND, GEO_PINS } from "@/data/geo";
 
 export function initDiagnosis(): () => void {
   /* =========================================================
@@ -29,68 +31,145 @@ export function initDiagnosis(): () => void {
   /* =========================================================
      INTRO / LANDING（写真が右上から飛来 → 中央に重なる → 四方へ散らばる）
      ========================================================= */
-  // 散らばった後の位置（写真の中心、ステージに対する%）。中央の文字に重ならない配置
-  const SPOTS_DESKTOP = [[42,14],[67,24],[88,31],[10,37],[21,67],[11,88],[64,84],[87,82],[44,91]];
-  const SPOTS_MOBILE  = [[18,17],[50,13],[82,19],[16,86],[49,90],[82,85]];
+  // 写真は最後に、右下の大きな線画の地球儀の上で「取扱ブランドの国」へ。地球儀はゆっくり回り、写真もピンについていく
   const canAnim = typeof Element!=="undefined" && typeof Element.prototype.animate==="function";
-  let introTimers=[], pics=[], stageReady=false;
+  let introTimers=[], pics=[], labels=[], stageReady=false;
   function later(fn,ms){ introTimers.push(setTimeout(fn,ms)); }
+  const COUNTRIES = GEO_PINS.map(pin=>{
+    const brands = Object.values(BRANDS).filter(b=>b.country===pin.name).map(b=>b.name);
+    const imgs = Object.values(CASES).filter(c=>c.used.some(u=>brands.includes(u))).flatMap(c=>c.imgs.filter(f=>!/_ext_06_/.test(f)));
+    return {...pin, brands, imgs};
+  });
+  const EU_BRANDS = COUNTRIES.reduce((n,c)=>n+c.brands.length,0);
+  // ピンから写真までのずらし（写真の幅を 1 とした値）。写真どうしが重ならない向き
+  const OFFSET = {DK:[-.2,-1.75], NL:[-1.55,-1.05], DE:[1.25,-1.45], FR:[-1.75,.35], CH:[-.75,1.45], IT:[.75,1.55], TR:[-.1,-1.6]};
+  const BASE_ROT = [-38,-22,0];                       // 地球儀の正面（経度38°・緯度22°）→ ヨーロッパが左上に来る
+  const GRAT = geoGraticule10();
+  let G = null, rot = [...BASE_ROT], spinT0 = 0, raf = 0;
+  const frame = fn => (typeof requestAnimationFrame==="function" ? requestAnimationFrame(fn) : setTimeout(()=>fn(performance.now()),16));
+  const cancelFrame = id => (typeof cancelAnimationFrame==="function" ? cancelAnimationFrame(id) : clearTimeout(id));
   function layoutFor(W,H){
     const mobile = W<700;
-    if(!mobile){
-      const pw = Math.round(Math.max(84,Math.min(W*.085,140)));
-      return {pw, ph:Math.round(pw*4/3), P:SPOTS_DESKTOP};
+    const pw = mobile ? Math.round(Math.max(38, Math.min(W*.11, 46))) : Math.round(Math.max(58, Math.min(W*.048, 76)));
+    let R, cx, cy;
+    if(mobile){
+      // タイトルの下から地球儀が始まるように大きさを決める
+      const en=$("entry"), eb = en ? en.offsetTop + en.offsetHeight : H*.42;
+      R = Math.max(W*.8, Math.min(W*1.6, (H - eb - 14)/0.92));
+      cx = W*.5 + R*.3; cy = H + R*.08;
+    } else {
+      R = Math.min(H*.98, W*.5); cx = W*.86; cy = H*1.04;
     }
-    // スマホ：上部バーと中央のタイトルを避け、上下の余白に3枚ずつ収める
-    const bar = document.querySelector("#stage .bar"), entry = document.querySelector("#stage .entry");
-    const barB = (bar ? bar.offsetHeight : 56) + 10;
-    const eh = Math.min(entry ? entry.offsetHeight : 320, H*.6);
-    const topZ=[barB, H/2-eh/2-14], botZ=[H/2+eh/2+14, H-14];
-    const zoneH = Math.min(topZ[1]-topZ[0], botZ[1]-botZ[0]);
-    let pw = Math.round(Math.min(W*.24,110));
-    if(pw*4/3 > zoneH) pw = Math.max(52, Math.round(zoneH*3/4));
-    const ph = Math.round(pw*4/3);
-    const slackT = Math.max(0,(topZ[1]-topZ[0]-ph)/2), slackB = Math.max(0,(botZ[1]-botZ[0]-ph)/2);
-    const cT=(topZ[0]+topZ[1])/2, cB=(botZ[0]+botZ[1])/2;
-    const xs=[.19,.5,.81], jt=[.4,-.5,.7], jb=[-.6,.5,-.3];
-    const P = [...xs.map((x,i)=>[x*W, cT+jt[i]*slackT]), ...xs.map((x,i)=>[x*W, cB+jb[i]*slackB])];
-    return {pw, ph, P, abs:true};
+    return {pw, ph:Math.round(pw*4/3), R, cx, cy, mobile, W, H};
+  }
+  function makeGlobe(L){
+    const proj = geoOrthographic().scale(L.R).translate([L.cx,L.cy]).clipAngle(90).precision(.6);
+    return {L, proj, path:geoPath(proj)};
+  }
+  function buildGlobe(){
+    const g=$("globe"); if(g.dataset.built) return;
+    g.innerHTML = `<svg aria-hidden="true"><defs><pattern id="gHatch" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" class="g-hl"/></pattern><radialGradient id="gGlass" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".7" stop-color="#f2f0ec" stop-opacity=".7"/><stop offset="1" stop-color="#dcd8d1" stop-opacity=".7"/></radialGradient></defs>
+      <path class="g-sphere" fill="url(#gGlass)"/><path class="g-grat"/><path class="g-hatch" fill="url(#gHatch)"/><path class="g-land"/><path class="g-border"/><path class="g-rim"/>
+      <g class="g-pins">${COUNTRIES.map(()=>`<circle class="g-pin" r="2.6"/>`).join("")}</g></svg>`;
+    g.dataset.built="1";
+    $("gcap").textContent = `${EU_BRANDS} European Brands — ${COUNTRIES.length} Countries`;
+  }
+  // 現在の回転で地球儀を描き、写真・線・ラベルをピンに合わせる
+  function render(){
+    if(!G) return;
+    const {proj,path,L}=G; proj.rotate(rot);
+    const sv=$("globe").firstElementChild, ps=sv.querySelectorAll("path");
+    const sphere=path({type:"Sphere"});
+    ps[0].setAttribute("d",sphere); ps[1].setAttribute("d",path(GRAT)||"");
+    ps[2].setAttribute("d",path(GEO_BRAND)||""); ps[3].setAttribute("d",path(GEO_COAST)||"");
+    ps[4].setAttribute("d",path(GEO_BORDERS)||""); ps[5].setAttribute("d",sphere);
+    const dots=sv.querySelectorAll(".g-pin"); let lines="";
+    COUNTRIES.forEach((c,i)=>{
+      const [px,py]=proj(c.ll), [ox,oy]=OFFSET[c.code];
+      dots[i].setAttribute("cx",px.toFixed(1)); dots[i].setAttribute("cy",py.toFixed(1));
+      const x=px+ox*L.pw, y=py+oy*L.pw;
+      if(pics[i] && stageReady){ pics[i].style.transform=tf(x-L.pw/2,y-L.ph/2,0,1); }
+      if(labels[i]){ labels[i].style.left=x+"px"; labels[i].style.top=(y+L.ph/2+5)+"px"; }
+      const dx=px-x, dy=py-y, k=Math.min((L.pw/2)/Math.abs(dx||1e-6),(L.ph/2)/Math.abs(dy||1e-6),1);
+      const sx=x+dx*k, sy=y+dy*k, len=Math.hypot(px-sx,py-sy);
+      lines+=`<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" style="--len:${len.toFixed(0)};transition-delay:${(i*.07).toFixed(2)}s"/>`;
+    });
+    $("leaders").innerHTML=lines;
+  }
+  // 写真の着地点（指定した回転のとき）
+  function targetsAt(r){
+    G.proj.rotate(r);
+    return COUNTRIES.map(c=>{ const [px,py]=G.proj(c.ll), [ox,oy]=OFFSET[c.code]; return [px+ox*G.L.pw-G.L.pw/2, py+oy*G.L.pw-G.L.ph/2]; });
+  }
+  // ゆっくり左右に回り続ける（ヨーロッパは常に見える範囲）
+  function spin(){
+    cancelFrame(raf);
+    if(reduceMotion) return;
+    spinT0 = 0;
+    const loop = t => {
+      if(!$("s-intro").classList.contains("active")) { raf=0; return; }
+      if(!spinT0) spinT0=t;
+      const e=(t-spinT0)/1000;
+      rot=[BASE_ROT[0]+Math.sin(e/6)*9, BASE_ROT[1]+Math.sin(e/9)*2.5, 0];
+      render(); raf=frame(loop);
+    };
+    raf=frame(loop);
+  }
+  // 入場：地球儀が回りながら止まる
+  function spinIn(ms){
+    cancelFrame(raf);
+    const from=[BASE_ROT[0]+150, BASE_ROT[1]+10, 0], t0=performance.now();
+    const loop = t => {
+      const p=Math.min(1,(t-t0)/ms), e=1-Math.pow(1-p,3);
+      rot=[from[0]+(BASE_ROT[0]-from[0])*e, from[1]+(BASE_ROT[1]-from[1])*e, 0];
+      render();
+      if(p<1 && !stageReady) raf=frame(loop);
+    };
+    raf=frame(loop);
   }
   const tf=(x,y,r,s)=>`translate(${x}px,${y}px) rotate(${r}deg) scale(${s})`;
   function stageSize(){ const st=$("stage"); return [st.clientWidth||innerWidth, st.clientHeight||innerHeight]; }
-  function finalPos(i,L,W,H){ const [px,py]=L.P[i]; return L.abs ? [px-L.pw/2, py-L.ph/2] : [W*px/100-L.pw/2, H*py/100-L.ph/2]; }
   function buildPics(){
-    const st=$("stage"); st.querySelectorAll(".pic").forEach(p=>p.remove());
-    const [W,H]=stageSize(), L=layoutFor(W,H);
+    const st=$("stage"); st.querySelectorAll(".pic,.plabel").forEach(p=>p.remove());
+    buildGlobe();
+    const [W,H]=stageSize(), L=layoutFor(W,H); G=makeGlobe(L);
     st.style.setProperty("--pw",L.pw+"px");
-    pics = shuffle(POOL).slice(0,L.P.length).map((p,i)=>{
-      const el=document.createElement("div"); el.className="pic"; el.style.zIndex=2+i;
-      el.innerHTML=`<img src="${p.src}" alt="">`; st.appendChild(el); return el;
+    const used=new Set();
+    pics = COUNTRIES.map((c,i)=>{
+      const pool = shuffle(c.imgs.length?c.imgs:POOL.map(p=>p.src)).filter(f=>!used.has(f));
+      const f = pool[0] || c.imgs[0]; used.add(f);
+      const el=document.createElement("div"); el.className="pic"; el.style.zIndex=4+i;
+      el.innerHTML=`<img src="${/^https?:/.test(f)?f:img(f)}" alt="">`; st.appendChild(el); return el;
     });
+    labels = COUNTRIES.map(c=>{
+      const el=document.createElement("div"); el.className="plabel";
+      el.innerHTML=`<b>${c.name}</b><i>${c.brands.length} ${c.brands.length>1?"brands":"brand"}</i>`;
+      st.appendChild(el); return el;
+    });
+    rot=[...BASE_ROT]; render();
     return L;
   }
   function settle(){
     const [W,H]=stageSize(), L=layoutFor(W,H);
-    if(L.P.length!==pics.length) buildPics();
+    G=makeGlobe(L);
     $("stage").style.setProperty("--pw",L.pw+"px");
-    pics.forEach((el,i)=>{
-      if(el.getAnimations) el.getAnimations().forEach(a=>a.cancel());
-      const [x,y]=finalPos(i,L,W,H);
-      el.style.transform=tf(x,y,0,1); el.style.opacity=1;
-    });
+    pics.forEach(el=>{ if(el.getAnimations) el.getAnimations().forEach(a=>a.cancel()); el.style.opacity=1; });
+    render();
   }
   function finishIntro(){
     introTimers.forEach(clearTimeout); introTimers=[];
-    stageReady=true; settle();
-    $("stage").classList.add("name-in","name-out","ready");
+    stageReady=true; rot=[...BASE_ROT]; settle();
+    $("stage").classList.add("name-in","name-out","globe-in","ready");
+    setTimeout(()=>$("stage").classList.add("lines-in"),60);
+    spin();
   }
   function runIntro(){
-    introTimers.forEach(clearTimeout); introTimers=[];
-    const st=$("stage"); stageReady=false; st.classList.remove("name-in","name-out","ready");
+    introTimers.forEach(clearTimeout); introTimers=[]; cancelFrame(raf);
+    const st=$("stage"); stageReady=false; st.classList.remove("name-in","name-out","globe-in","lines-in","ready");
     const L=buildPics();
     if(reduceMotion || !canAnim){ finishIntro(); return; }
     const [W,H]=stageSize(), n=pics.length;
-    const S=Math.min(2.4,(H*.52)/L.ph);              // 重なっている時の拡大率
+    const S=Math.min(2.6,(H*.48)/L.ph);              // 重なっている時の拡大率
     const sx=W/2-L.pw/2, sy=H/2-L.ph/2;               // 中央
     const rots=pics.map((_,i)=> i===n-1 ? 0 : Math.random()*10-5);
     const loads=pics.map(el=>{ const im=el.querySelector("img"); return im.complete?Promise.resolve():new Promise(r=>{ im.onload=im.onerror=r; }); });
@@ -99,24 +178,25 @@ export function initDiagnosis(): () => void {
     later(()=>{
       Promise.race([Promise.all(loads), new Promise(r=>setTimeout(r,2000))]).then(()=>{
         if(stageReady) return;
-        // ① 右上から半透明で飛来し、中央に重なる
+        // ① 右上から飛来し、中央に重なる
         pics.forEach((el,i)=>el.animate([
           {transform:tf(W*.62,-H*.6-L.ph,24,S),opacity:0},
           {opacity:.55,offset:.45},
           {transform:tf(sx,sy,rots[i],S),opacity:i===n-1?1:.9}
         ],{duration:950,delay:i*130,easing:"cubic-bezier(.22,.9,.3,1)",fill:"both"}));
-        // ② 四方へ散らばる
+        // ② 地球儀が回りながら現れ、写真はそれぞれの国へ
         later(()=>{
           if(stageReady) return;
+          const SPIN=1900, T=targetsAt(BASE_ROT);
+          st.classList.add("globe-in"); spinIn(SPIN);
           pics.forEach((el,i)=>{
-            const [x,y]=finalPos(i,L,W,H);
             el.getAnimations().forEach(a=>a.cancel());
             el.animate([
               {transform:tf(sx,sy,rots[i],S),opacity:i===n-1?1:.9},
-              {transform:tf(x,y,0,1),opacity:1}
-            ],{duration:1150,delay:(n-1-i)*55,easing:"cubic-bezier(.7,0,.2,1)",fill:"both"});
+              {transform:tf(T[i][0],T[i][1],0,1),opacity:1}
+            ],{duration:1250,delay:500+(n-1-i)*70,easing:"cubic-bezier(.7,0,.2,1)",fill:"both"});
           });
-          later(finishIntro,(n-1)*55+1200);
+          later(finishIntro, Math.max(SPIN, 500+(n-1)*70+1250)+80);
         },(n-1)*130+950+350);
       });
     },3100);                                           // 文字が消えてから写真が入場
@@ -127,7 +207,7 @@ export function initDiagnosis(): () => void {
     show("s-intro"); runIntro();
   }
   let resizeT;
-  const onResize=()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ if(stageReady && $("s-intro").classList.contains("active")) settle(); },150); };
+  const onResize=()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ if($("s-intro").classList.contains("active")){ if(stageReady) settle(); else { const [W,H]=stageSize(); G=makeGlobe(layoutFor(W,H)); render(); } } },150); };
 
   /* =========================================================
      QUIZ
@@ -324,8 +404,12 @@ export function initDiagnosis(): () => void {
   if(sharedKey){ renderResult(sharedKey,null); }
   else runIntro();
 
+  // UI ボード（全画面一覧）用：画面を直接切り替えるためのフック
+  if (typeof window!=="undefined" && window.__DIAG_DEBUG) window.__diag={start,show,finishIntro,renderQ,renderResult,runLoader,setAnswers:a=>{answers=a},go:n=>{cur=n;renderQ();}};
+
   return () => {
     removeEventListener("resize",onResize);
+    cancelFrame(raf);
     introTimers.forEach(clearTimeout);
     clearTimeout(loaderT);
   };

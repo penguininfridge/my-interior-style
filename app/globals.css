@@ -12,6 +12,7 @@
   --jserif:"Shippori Mincho","Cormorant Garamond",serif;
   --sans:"Noto Sans JP","Helvetica Neue",Arial,sans-serif;
   --label:"Jost","Noto Sans JP",sans-serif;
+  --mono:"IBM Plex Mono","Courier New",monospace;
   /* type scale: 11 / 12.5 / 14 / 18 / 28 / display */
   --fs-xs:11px; --fs-s:12.5px; --fs-m:14px; --fs-l:18px; --fs-xl:28px;
   --ease:cubic-bezier(.16,.84,.24,1);
@@ -45,8 +46,32 @@ img{display:block}
 .tagline .nw{white-space:nowrap}
 .stage.name-in .brandname,.stage.name-in .tagline{opacity:1}
 .stage.name-out .brandname,.stage.name-out .tagline{opacity:0;transition:opacity .8s ease}
-.entry{position:absolute;left:0;right:0;top:50%;opacity:0;transform:translateY(calc(-50% + 18px));pointer-events:none;transition:opacity 1s ease .15s,transform 1.2s var(--ease) .15s}
+/* タイトル：PC は左側、スマホは画面下部 */
+.entry{position:absolute;z-index:20;left:6vw;top:50%;width:min(440px,34vw);text-align:center;opacity:0;transform:translateY(calc(-50% + 18px));pointer-events:none;transition:opacity 1s ease .15s,transform 1.2s var(--ease) .15s}
 .stage.ready .entry{opacity:1;transform:translateY(-50%);pointer-events:auto}
+
+/* 線画の地球儀（取扱ブランドの国にピン） */
+.globe{position:absolute;inset:0;z-index:1;opacity:0;transform:translate(4%,6%);transition:opacity 1.4s ease,transform 2.2s var(--ease);pointer-events:none}
+.globe svg{width:100%;height:100%;display:block}
+.stage.globe-in .globe{opacity:1;transform:none}
+.g-hl{stroke:var(--ink);stroke-width:.8;stroke-opacity:.8}
+.g-sphere{stroke:none}
+.g-grat{fill:none;stroke:var(--ink);stroke-opacity:.07;stroke-width:.5px;vector-effect:non-scaling-stroke}
+.g-land{fill:none;stroke:var(--ink);stroke-opacity:.75;stroke-width:.6px;vector-effect:non-scaling-stroke}
+.g-hatch{stroke:var(--ink);stroke-opacity:.8;stroke-width:.6px}
+.g-border{fill:none;stroke:var(--ink);stroke-opacity:.25;stroke-width:.5px;vector-effect:non-scaling-stroke}
+.g-rim{fill:none;stroke:var(--ink);stroke-opacity:.45;stroke-width:.8px;vector-effect:non-scaling-stroke}
+.g-pin{fill:var(--ink);stroke:var(--bg);stroke-width:1.5px;vector-effect:non-scaling-stroke}
+.gcap{position:absolute;z-index:2;left:6vw;bottom:26px;white-space:nowrap;font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--sub);opacity:0;transition:opacity 1s ease 1s}
+.stage.globe-in .gcap{opacity:1}
+.leaders{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;overflow:visible}
+.leaders line{stroke:var(--ink);stroke-opacity:.55;stroke-width:.6px;stroke-dasharray:var(--len) var(--len);stroke-dashoffset:var(--len);transition:stroke-dashoffset 1s var(--ease)}
+.stage.lines-in .leaders line{stroke-dashoffset:0}
+.plabel{position:absolute;z-index:12;text-shadow:0 0 3px var(--bg),0 0 3px var(--bg),0 0 6px var(--bg);transform:translateX(-50%);text-align:center;font-family:var(--mono);line-height:1.5;opacity:0;transition:opacity .9s ease;pointer-events:none;width:max-content;max-width:150px}
+.plabel.up{transform:translate(-50%,-100%)}
+.plabel b{display:block;font-weight:400;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}
+.plabel i{display:block;font-style:normal;font-size:8.5px;letter-spacing:.1em;color:var(--sub);margin-top:1px}
+.stage.lines-in .plabel{opacity:1}
 .entry .kick{font-family:var(--sans);font-size:var(--fs-xs);color:var(--sub);letter-spacing:.2em;font-weight:400}
 .entry h1{font-family:var(--jserif);font-weight:500;font-size:clamp(26px,3vw,40px);line-height:1.55;margin-top:18px;letter-spacing:.06em}
 .entry .sub{margin-top:22px;font-family:var(--sans);font-size:var(--fs-s);font-weight:300;color:var(--sub);letter-spacing:.06em}
@@ -176,6 +201,14 @@ footer{padding:30px 28px 50px;display:flex;justify-content:space-between;gap:20p
   .bar{padding:18px 18px}
   .stage .bar{padding:14px 16px}
   .stage .bar .mini{font-size:8.5px;letter-spacing:.14em}
+  .entry{left:0;right:0;width:auto;top:13svh;padding:0 20px;transform:translateY(18px)}
+  .stage.ready .entry{transform:none}
+  .entry h1{font-size:25px;margin-top:12px;line-height:1.5}
+  .entry .sub{margin-top:14px}
+  .start{margin-top:22px}
+  .gcap{display:none}
+  .plabel b{font-size:7.5px;letter-spacing:.1em}
+  .plabel i{font-size:7.5px}
   /* --- スマホ：質問画面（写真を低めにして、選択肢までひと目で見える高さに） --- */
   .quiz{grid-template-columns:1fr;gap:18px;padding:22px 18px 28px;min-height:100svh;align-items:start}
   .qimg{aspect-ratio:auto;height:min(26svh,210px)}

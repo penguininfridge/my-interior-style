@@ -16,15 +16,18 @@ export default function Diagnosis() {
       <section className="screen active" id="s-intro">
         <div className="stage" id="stage">
           <div className="bar"><span className="mini">Interior Style Diagnosis</span><span className="mini">12 Questions</span></div>
+          <div className="globe" id="globe"></div>
+          <div className="gcap" id="gcap"></div>
+          <svg className="leaders" id="leaders" aria-hidden="true"></svg>
           <div className="center">
             <div className="brandname">セラトレーディング</div>
             <div className="tagline">美という言葉だけでは捉えられない<span className="nw">「BEAUTIFUL LIFE」へ。</span></div>
-            <div className="entry">
-              <div className="kick">見つけよう！</div>
-              <h1>あなたの<br />ヨーロッパインテリア<br />スタイル診断</h1>
-              <p className="sub">12の質問で、あなたに似合うデザインがわかる。</p>
-              <button className="start" id="startBtn">診断をはじめる <span>→</span></button>
-            </div>
+          </div>
+          <div className="entry" id="entry">
+            <div className="kick">見つけよう！</div>
+            <h1>あなたの<br />ヨーロッパインテリア<br />スタイル診断</h1>
+            <p className="sub">12の質問で、あなたに似合うデザインがわかる。</p>
+            <button className="start" id="startBtn">診断をはじめる <span>→</span></button>
           </div>
           <button className="skip mini" id="skipBtn">Skip</button>
         </div>
