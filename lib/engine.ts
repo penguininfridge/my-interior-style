@@ -37,12 +37,28 @@ export function initDiagnosis(): () => void {
   function later(fn,ms){ introTimers.push(setTimeout(fn,ms)); }
   function layoutFor(W,H){
     const mobile = W<700;
-    const pw = mobile ? Math.round(Math.min(W*.22,110)) : Math.round(Math.max(84,Math.min(W*.085,140)));
-    return {pw, ph:Math.round(pw*4/3), P: mobile?SPOTS_MOBILE:SPOTS_DESKTOP};
+    if(!mobile){
+      const pw = Math.round(Math.max(84,Math.min(W*.085,140)));
+      return {pw, ph:Math.round(pw*4/3), P:SPOTS_DESKTOP};
+    }
+    // スマホ：上部バーと中央のタイトルを避け、上下の余白に3枚ずつ収める
+    const bar = document.querySelector("#stage .bar"), entry = document.querySelector("#stage .entry");
+    const barB = (bar ? bar.offsetHeight : 56) + 10;
+    const eh = Math.min(entry ? entry.offsetHeight : 320, H*.6);
+    const topZ=[barB, H/2-eh/2-14], botZ=[H/2+eh/2+14, H-14];
+    const zoneH = Math.min(topZ[1]-topZ[0], botZ[1]-botZ[0]);
+    let pw = Math.round(Math.min(W*.24,110));
+    if(pw*4/3 > zoneH) pw = Math.max(52, Math.round(zoneH*3/4));
+    const ph = Math.round(pw*4/3);
+    const slackT = Math.max(0,(topZ[1]-topZ[0]-ph)/2), slackB = Math.max(0,(botZ[1]-botZ[0]-ph)/2);
+    const cT=(topZ[0]+topZ[1])/2, cB=(botZ[0]+botZ[1])/2;
+    const xs=[.19,.5,.81], jt=[.4,-.5,.7], jb=[-.6,.5,-.3];
+    const P = [...xs.map((x,i)=>[x*W, cT+jt[i]*slackT]), ...xs.map((x,i)=>[x*W, cB+jb[i]*slackB])];
+    return {pw, ph, P, abs:true};
   }
   const tf=(x,y,r,s)=>`translate(${x}px,${y}px) rotate(${r}deg) scale(${s})`;
   function stageSize(){ const st=$("stage"); return [st.clientWidth||innerWidth, st.clientHeight||innerHeight]; }
-  function finalPos(i,L,W,H){ const [px,py]=L.P[i]; return [W*px/100-L.pw/2, H*py/100-L.ph/2]; }
+  function finalPos(i,L,W,H){ const [px,py]=L.P[i]; return L.abs ? [px-L.pw/2, py-L.ph/2] : [W*px/100-L.pw/2, H*py/100-L.ph/2]; }
   function buildPics(){
     const st=$("stage"); st.querySelectorAll(".pic").forEach(p=>p.remove());
     const [W,H]=stageSize(), L=layoutFor(W,H);
@@ -255,7 +271,7 @@ export function initDiagnosis(): () => void {
           <div class="ph"><img src="${heroOf(key)}" alt="${caseOfType(key).title}"></div>
           <div class="txt">
             <div class="you mini">あなたのスタイルは</div>
-            <h2>${T.name}</h2>
+            <h2>${T.name.replace(/(の|・)/,"$1<wbr>")}</h2>
             <div class="en">${T.en}</div>
             <div class="catch">${T.catch}</div>
             <div class="origin mini">${T.origin} — Photo: ${caseOfType(key).title}</div>
