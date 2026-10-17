@@ -61,17 +61,27 @@ img{display:block}
 .g-hatch{stroke:var(--ink);stroke-opacity:.8;stroke-width:.6px}
 .g-border{fill:none;stroke:var(--ink);stroke-opacity:.25;stroke-width:.5px;vector-effect:non-scaling-stroke}
 .g-rim{fill:none;stroke:var(--ink);stroke-opacity:.45;stroke-width:.8px;vector-effect:non-scaling-stroke}
-.g-pin{fill:var(--ink);stroke:var(--bg);stroke-width:1.5px;vector-effect:non-scaling-stroke}
 .gcap{position:absolute;z-index:2;left:6vw;bottom:26px;white-space:nowrap;font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--sub);opacity:0;transition:opacity 1s ease 1s}
 .stage.globe-in .gcap{opacity:1}
 .leaders{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;overflow:visible}
 .leaders line{stroke:var(--ink);stroke-opacity:.55;stroke-width:.6px;stroke-dasharray:var(--len) var(--len);stroke-dashoffset:var(--len);transition:stroke-dashoffset 1s var(--ease)}
 .stage.lines-in .leaders line{stroke-dashoffset:0}
-.plabel{position:absolute;z-index:12;text-shadow:0 0 3px var(--bg),0 0 3px var(--bg),0 0 6px var(--bg);transform:translateX(-50%);text-align:center;font-family:var(--mono);line-height:1.5;opacity:0;transition:opacity .9s ease;pointer-events:none;width:max-content;max-width:150px}
-.plabel.up{transform:translate(-50%,-100%)}
-.plabel b{display:block;font-weight:400;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}
-.plabel i{display:block;font-style:normal;font-size:8.5px;letter-spacing:.1em;color:var(--sub);margin-top:1px}
-.stage.lines-in .plabel{opacity:1}
+/* 位置アイコン（ピン） */
+.gmark{position:absolute;left:0;top:0;z-index:11;width:0;height:0;pointer-events:none}
+.gmark span{position:absolute;left:-7px;top:-20px;width:14px;height:20px;display:block;transform:scale(0);transform-origin:50% 100%;transition:transform .7s cubic-bezier(.3,1.6,.5,1) var(--d,0s)}
+.gmark svg{width:100%;height:100%;display:block;overflow:visible}
+.gmark path{fill:var(--ink);stroke:var(--bg);stroke-width:1.2}
+.gmark circle{fill:var(--bg)}
+.stage.lines-in .gmark{pointer-events:auto}
+.stage.lines-in .gmark span{transform:scale(1)}
+.gmark:hover span{transform:scale(1.15)!important}
+/* 国名とブランド名（クリックでブランド一覧へ） */
+.plabel{position:absolute;left:0;top:0;z-index:12;display:block;text-align:center;font-family:var(--mono);line-height:1.55;color:var(--ink);text-decoration:none;opacity:0;transition:opacity .9s ease;pointer-events:none;width:max-content;max-width:170px;text-shadow:0 0 3px var(--bg),0 0 3px var(--bg),0 0 6px var(--bg)}
+.plabel b{display:block;font-weight:400;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase}
+.plabel span{display:block;font-size:8.5px;letter-spacing:.06em;color:var(--sub);margin-top:2px}
+.stage.lines-in .plabel{opacity:1;pointer-events:auto}
+.plabel:hover b{text-decoration:underline;text-underline-offset:3px}
+.stage.ready .pic{display:none}
 .entry .kick{font-family:var(--sans);font-size:var(--fs-xs);color:var(--sub);letter-spacing:.2em;font-weight:400}
 .entry h1{font-family:var(--jserif);font-weight:500;font-size:clamp(26px,3vw,40px);line-height:1.55;margin-top:18px;letter-spacing:.06em}
 .entry .sub{margin-top:22px;font-family:var(--sans);font-size:var(--fs-s);font-weight:300;color:var(--sub);letter-spacing:.06em}
@@ -207,8 +217,10 @@ footer{padding:30px 28px 50px;display:flex;justify-content:space-between;gap:20p
   .entry .sub{margin-top:14px}
   .start{margin-top:22px}
   .gcap{display:none}
-  .plabel b{font-size:7.5px;letter-spacing:.1em}
-  .plabel i{font-size:7.5px}
+  .plabel{max-width:96px;line-height:1.45}
+  .plabel b{font-size:7.5px;letter-spacing:.12em}
+  .plabel span{font-size:6.5px;letter-spacing:.03em}
+  .gmark span{left:-5.5px;top:-15px;width:11px;height:15px}
   /* --- スマホ：質問画面（写真を低めにして、選択肢までひと目で見える高さに） --- */
   .quiz{grid-template-columns:1fr;gap:18px;padding:22px 18px 28px;min-height:100svh;align-items:start}
   .qimg{aspect-ratio:auto;height:min(26svh,210px)}
