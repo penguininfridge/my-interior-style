@@ -390,7 +390,7 @@ export function initDiagnosis(): () => void {
         <div class="sec"><h3>Other Styles<small class="mini">ほかのタイプ</small></h3><div class="others">${others}</div></div>
         <div class="retry"><button class="btn ghost" id="retryBtn">もう一度診断する</button></div>
       </div>
-      <footer class="mini"><span>見つけよう！あなたのヨーロッパインテリアスタイル診断</span><span>※本診断はエンターテインメントです ／ 写真：セラトレーディング納品事例より</span></footer>`;
+      <footer class="credit"><p>本サイトに掲載している写真・画像等の素材の著作権は、すべて株式会社セラトレーディングに帰属します。</p><p>引用素材はすべてセラトレーディング公式サイト（<a href="https://www.cera.co.jp/" target="_blank" rel="noopener">https://www.cera.co.jp/</a>）より掲載しています。</p></footer>`;
 
     show("s-result");
     setTimeout(()=>{

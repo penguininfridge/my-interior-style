@@ -202,7 +202,10 @@ img{display:block}
 .oth:hover img{filter:none;opacity:1;transform:scale(1.04)}
 .oth .n{font-family:var(--jserif);font-size:var(--fs-m);font-weight:500;margin-top:10px}
 .retry{text-align:center;padding:50px 0 20px}
-footer{padding:30px 28px 50px;display:flex;justify-content:space-between;gap:20px;color:var(--mute);flex-wrap:wrap}
+footer{padding:30px 28px 50px;color:var(--mute)}
+footer.credit{text-align:center;font-size:10.5px;line-height:1.9;letter-spacing:.04em}
+footer.credit a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+footer.credit a:hover{color:var(--ink)}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 22px;font-size:var(--fs-s);letter-spacing:.1em;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
 .toast.show{opacity:1}
 
