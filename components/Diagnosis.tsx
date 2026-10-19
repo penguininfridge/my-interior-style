@@ -20,7 +20,7 @@ export default function Diagnosis() {
           <div className="gcap" id="gcap"></div>
           <svg className="leaders" id="leaders" aria-hidden="true"></svg>
           <div className="center">
-            <div className="brandname">セラトレーディング</div>
+            <div className="brandname">セラトレーディング<small>（面接用）</small></div>
             <div className="tagline">美という言葉だけでは捉えられない<span className="nw">「BEAUTIFUL LIFE」へ。</span></div>
           </div>
           <div className="entry" id="entry">
